@@ -20,6 +20,50 @@ supabase_key = os.getenv("SUPABASE_KEY")
 supabase = create_client(supabase_url, supabase_key)
 
 # =========================
+# SESIÓN DE ADMINISTRADOR
+# =========================
+if "admin_logueado" not in st.session_state:
+    st.session_state.admin_logueado = False
+
+if "admin_email" not in st.session_state:
+    st.session_state.admin_email = None
+
+def login_admin():
+    st.markdown("### 🔐 Acceso administrativo")
+
+    email_admin = st.text_input(
+        "Correo del administrador",
+        placeholder="admin@colegio.com"
+    )
+
+    password_admin = st.text_input(
+        "Contraseña",
+        type="password"
+    )
+
+    if st.button("Iniciar sesión", use_container_width=True):
+        try:
+            respuesta = supabase.auth.sign_in_with_password({
+                "email": email_admin,
+                "password": password_admin
+            })
+
+            if respuesta.user:
+                st.session_state.admin_logueado = True
+                st.session_state.admin_email = email_admin
+                st.success("Inicio de sesión correcto")
+                st.rerun()
+
+        except Exception:
+            st.error("Correo o contraseña incorrectos")
+
+def cerrar_sesion_admin():
+    supabase.auth.sign_out()
+    st.session_state.admin_logueado = False
+    st.session_state.admin_email = None
+    st.rerun()
+
+# =========================
 # ESTILO MODERNO
 # =========================
 st.markdown("""
@@ -289,7 +333,12 @@ if tipo_acceso == "Docente":
 # ADMINISTRATIVO
 # =========================
 else:
+    if not st.session_state.admin_logueado:
+        login_admin()
+        st.stop()
 
+    if st.button("Cerrar sesión"):
+        cerrar_sesion_admin()
     st.markdown("""
         <div class="hero-card">
             <span class="badge">Panel administrativo</span>

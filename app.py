@@ -1,5 +1,10 @@
 import streamlit as st
 import os
+import smtplib
+from email.mime.text import MIMEText
+import json
+import urllib.request
+import urllib.error
 from dotenv import load_dotenv
 from supabase import create_client
 
@@ -18,7 +23,30 @@ load_dotenv()
 supabase_url = os.getenv("SUPABASE_URL")
 supabase_key = os.getenv("SUPABASE_KEY")
 supabase = create_client(supabase_url, supabase_key)
+email_user = os.getenv("EMAIL_USER")
+email_password = os.getenv("EMAIL_PASSWORD")
+def enviar_correo(destinatario, estado, observaciones=""):
+    asunto = f"DocenteGO - Solicitud {estado}"
 
+    cuerpo = f"""
+Hola,
+
+Tu solicitud ha sido {estado}.
+
+Observaciones: {observaciones if observaciones else "Sin observaciones."}
+
+DocenteGO
+"""
+
+    mensaje = MIMEText(cuerpo, "plain", "utf-8")
+    mensaje["Subject"] = asunto
+    mensaje["From"] = email_user
+    mensaje["To"] = destinatario
+
+    with smtplib.SMTP("smtp.gmail.com", 587) as servidor:
+        servidor.starttls()
+        servidor.login(email_user, email_password)
+        servidor.send_message(mensaje)
 # =========================
 # SESIÓN DE ADMINISTRADOR
 # =========================
@@ -427,6 +455,11 @@ else:
                             "estado": "Aceptada",
                             "observaciones": observaciones
                         }).eq("id", solicitud_id).execute()
+                        enviar_correo(
+    solicitud.get("correo", ""),
+    "aceptada",
+    observaciones
+)
 
                         st.success("Solicitud aceptada")
                         st.rerun()
@@ -440,6 +473,11 @@ else:
                             "estado": "Rechazada",
                             "observaciones": observaciones
                         }).eq("id", solicitud_id).execute()
+                        enviar_correo(
+    solicitud.get("correo", ""),
+    "rechazada",
+    observaciones
+)
 
                         st.success("Solicitud rechazada")
                         st.rerun()

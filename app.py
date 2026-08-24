@@ -377,6 +377,57 @@ hr {
     border-top: 1px solid #edf0f4;
     margin: 24px 0;
 }
+
+/* Mejor contraste exclusivamente en celulares */
+@media (max-width: 768px) {
+    .stApp,
+    .stApp p,
+    .stApp label,
+    .stApp [data-testid="stMarkdownContainer"],
+    .stApp [data-testid="stWidgetLabel"] {
+        color: #1f2937 !important;
+    }
+
+    .muted,
+    .section-subtitle,
+    [data-testid="stCaptionContainer"] {
+        color: #4b5563 !important;
+    }
+
+    h1, h2, h3, h4,
+    .section-title,
+    .logo-title {
+        color: #0f172a !important;
+    }
+
+    input,
+    textarea,
+    div[data-baseweb="select"] span {
+        color: #111827 !important;
+        -webkit-text-fill-color: #111827 !important;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+        color: #6b7280 !important;
+        -webkit-text-fill-color: #6b7280 !important;
+        opacity: 1 !important;
+    }
+
+    .stButton > button,
+    .stFormSubmitButton > button {
+        color: white !important;
+        -webkit-text-fill-color: white !important;
+    }
+
+    .badge {
+        color: #078564 !important;
+    }
+
+    .success-box {
+        color: #08765d !important;
+    }
+}
 </style>
 """,
     unsafe_allow_html=True,

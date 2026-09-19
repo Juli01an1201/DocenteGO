@@ -9,27 +9,32 @@ from supabase import create_client
 st.set_page_config(page_title="Go HRMS", page_icon="🎓", layout="wide")
 
 # =========================
-# CONEXIÓN ROBUSTA A SUPABASE
+# CONEXIÓN DIAGNÓSTICA A SUPABASE
 # =========================
-load_dotenv()  # Carga el archivo .env si estás en tu computador local
-
-# Intentar obtener las credenciales de los Secrets (Nube) o de Variables de Entorno (Local)
-try:
-    supabase_url = st.secrets["SUPABASE_URL"]
-except Exception:
-    supabase_url = os.getenv("SUPABASE_URL")
+load_dotenv()
 
 try:
-    supabase_key = st.secrets["SUPABASE_KEY"]
+    supabase_url = st.secrets.get("SUPABASE_URL", "")
+    supabase_key = st.secrets.get("SUPABASE_KEY", "")
 except Exception:
-    supabase_key = os.getenv("SUPABASE_KEY")
+    supabase_url = os.getenv("SUPABASE_URL", "")
+    supabase_key = os.getenv("SUPABASE_KEY", "")
 
-if not supabase_url or not supabase_key:
-    st.error("🚨 Error crítico: No se encontraron las credenciales de Supabase. Revisa los Secrets en Streamlit Cloud.")
+# --- PANEL DE DIAGNÓSTICO ---
+if not supabase_key:
+    st.error("❌ ERROR TIPO 1: La llave está completamente vacía. Streamlit no está leyendo los Secrets.")
     st.stop()
-
-# Crear el cliente si las credenciales existen
-supabase = create_client(supabase_url, supabase_key)
+elif not supabase_key.startswith("eyJ"):
+    st.error(f"❌ ERROR TIPO 2: La llave es incorrecta. Debería empezar por 'eyJ' pero empieza por: '{supabase_key[:5]}...'")
+    st.info("Revisa los Secrets. Probablemente copiaste otra cosa o hay comillas anidadas.")
+    st.stop()
+else:
+    # Si pasa las pruebas, intenta conectar
+    try:
+        supabase = create_client(supabase_url, supabase_key)
+    except Exception as e:
+        st.error(f"❌ ERROR TIPO 3: Falló al crear el cliente de Supabase. Detalle del error: {e}")
+        st.stop()
 
 # =========================
 # ESTADO DE SESIÓN SEGURO

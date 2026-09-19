@@ -60,17 +60,44 @@ def mostrar_login():
             email = st.text_input("Correo institucional")
             password = st.text_input("Contraseña", type="password")
             
-            rol_simulado = st.radio("Entrar como:", ["Docente", "Administrativo"])
-            
             if st.button("Ingresar", use_container_width=True, type="primary"):
                 if email and password:
-                    st.session_state.logueado = True
-                    st.session_state.usuario_email = email
-                    st.session_state.usuario_rol = rol_simulado
-                    st.rerun() 
+                    try:
+                        # 1. Autenticación real contra Supabase Auth
+                        res = supabase.auth.sign_in_with_password({
+                            "email": email.strip(),
+                            "password": password.strip()
+                        })
+                        
+                        if res.user:
+                            # 2. Buscar los datos en tu tabla (Cambia "perfiles" por el nombre real de tu tabla)
+                            perfil = supabase.table("perfiles").select("rol, nombre, organizacion_id").eq("id", res.user.id).execute()
+                            
+                            rol_db = "docente" # Por defecto
+                            nombre_usuario = "Usuario"
+                            
+                            if perfil.data and len(perfil.data) > 0:
+                                rol_db = perfil.data[0].get("rol", "docente").lower()
+                                nombre_usuario = perfil.data[0].get("nombre", "Usuario")
+                            
+                            # 3. Traducir el rol de tu BD al menú de la aplicación
+                            if rol_db == "admin" or rol_db == "administrativo":
+                                rol_app = "Administrativo"
+                            else:
+                                rol_app = "Docente"
+                            
+                            # 4. Guardar todo en la sesión segura
+                            st.session_state.logueado = True
+                            st.session_state.usuario_email = res.user.email
+                            st.session_state.usuario_nombre = nombre_usuario # ¡Ahora tenemos el nombre real!
+                            st.session_state.usuario_rol = rol_app
+                            
+                            st.success(f"¡Bienvenido, {nombre_usuario}!")
+                            st.rerun() 
+                    except Exception as e:
+                        st.error("❌ Correo o contraseña incorrectos.")
                 else:
-                    st.error("⚠️ Ingresa cualquier correo y contraseña para continuar.")
-
+                    st.warning("⚠️ Ingresa tu correo y contraseña.")
 # =========================
 # ENRUTADOR DINÁMICO
 # =========================

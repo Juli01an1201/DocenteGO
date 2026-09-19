@@ -8,12 +8,28 @@ from supabase import create_client
 # =========================
 st.set_page_config(page_title="Go HRMS", page_icon="🎓", layout="wide")
 
-load_dotenv()
-supabase_url = os.getenv("SUPABASE_URL") or st.secrets.get("SUPABASE_URL")
-supabase_key = os.getenv("SUPABASE_KEY") or st.secrets.get("SUPABASE_KEY")
+# =========================
+# CONEXIÓN ROBUSTA A SUPABASE
+# =========================
+load_dotenv()  # Carga el archivo .env si estás en tu computador local
 
-if supabase_url and supabase_key:
-    supabase = create_client(supabase_url, supabase_key)
+# Intentar obtener las credenciales de los Secrets (Nube) o de Variables de Entorno (Local)
+try:
+    supabase_url = st.secrets["SUPABASE_URL"]
+except Exception:
+    supabase_url = os.getenv("SUPABASE_URL")
+
+try:
+    supabase_key = st.secrets["SUPABASE_KEY"]
+except Exception:
+    supabase_key = os.getenv("SUPABASE_KEY")
+
+if not supabase_url or not supabase_key:
+    st.error("🚨 Error crítico: No se encontraron las credenciales de Supabase. Revisa los Secrets en Streamlit Cloud.")
+    st.stop()
+
+# Crear el cliente si las credenciales existen
+supabase = create_client(supabase_url, supabase_key)
 
 # =========================
 # ESTADO DE SESIÓN SEGURO

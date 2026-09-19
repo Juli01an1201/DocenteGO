@@ -15,14 +15,24 @@ if st.session_state.usuario_rol != "Administrativo":
     st.error("Acceso denegado. Esta vista es exclusiva para el área administrativa.")
     st.stop()
 
-# 2. Conexión
+# 2. Conexión Robusta
 load_dotenv()
-supabase_url = os.getenv("SUPABASE_URL") or st.secrets.get("SUPABASE_URL")
-supabase_key = os.getenv("SUPABASE_KEY") or st.secrets.get("SUPABASE_KEY")
-supabase = create_client(supabase_url, supabase_key)
+try:
+    supabase_url = st.secrets["SUPABASE_URL"]
+    supabase_key = st.secrets["SUPABASE_KEY"]
+    email_user = st.secrets["EMAIL_USER"]
+    email_password = st.secrets["EMAIL_PASSWORD"]
+except Exception:
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_KEY")
+    email_user = os.getenv("EMAIL_USER")
+    email_password = os.getenv("EMAIL_PASSWORD")
 
-email_user = os.getenv("EMAIL_USER") or st.secrets.get("EMAIL_USER")
-email_password = os.getenv("EMAIL_PASSWORD") or st.secrets.get("EMAIL_PASSWORD")
+if not supabase_url or not supabase_key:
+    st.error("🚨 Error crítico: No se encontraron las credenciales de Supabase.")
+    st.stop()
+
+supabase = create_client(supabase_url, supabase_key)
 BUCKET_EVIDENCIAS = "evidencias"
 
 # 3. Funciones

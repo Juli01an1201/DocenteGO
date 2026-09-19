@@ -10,10 +10,22 @@ if "logueado" not in st.session_state or not st.session_state.logueado:
     st.warning("Debes iniciar sesión para ver esta página.")
     st.stop()
 
-# 2. Conexión a BD
+# 2. Conexión a BD Robusta
 load_dotenv()
-supabase_url = os.getenv("SUPABASE_URL") or st.secrets.get("SUPABASE_URL")
-supabase_key = os.getenv("SUPABASE_KEY") or st.secrets.get("SUPABASE_KEY")
+try:
+    supabase_url = st.secrets["SUPABASE_URL"]
+except Exception:
+    supabase_url = os.getenv("SUPABASE_URL")
+
+try:
+    supabase_key = st.secrets["SUPABASE_KEY"]
+except Exception:
+    supabase_key = os.getenv("SUPABASE_KEY")
+
+if not supabase_url or not supabase_key:
+    st.error("🚨 Error crítico: No se encontraron las credenciales de Supabase.")
+    st.stop()
+
 supabase = create_client(supabase_url, supabase_key)
 BUCKET_EVIDENCIAS = "evidencias"
 
@@ -73,7 +85,7 @@ if st.button("✈️ Enviar solicitud", type="primary", use_container_width=True
             ruta_evidencia = subir_evidencia(evidencia)
             
             datos = {
-                "nombre": st.session_state.usuario_email.split("@")[0].capitalize(), # Nombre temporal basado en email
+                "nombre": st.session_state.usuario_email.split("@")[0].capitalize(),
                 "correo": st.session_state.usuario_email,
                 "fecha": str(fecha),
                 "hora_inicio": str(hora_inicio),

@@ -80,19 +80,24 @@ with tab_novedades:
     st.markdown("Ingresa ausencias, incapacidades y otras novedades que afectan la nómina.")
     
     try:
-        # Traer solo los perfiles de Docentes
-        res_perfiles = supabase.table("perfiles").select("id, nombre").eq("rol", "docente").execute()
+        # Traer TODOS los perfiles (Docentes y Administrativos, porque todos tienen nómina)
+        res_perfiles = supabase.table("perfiles").select("id, nombre, rol").execute()
+        
         if res_perfiles.data:
-            diccionario_docentes = {d["nombre"]: d["id"] for d in res_perfiles.data}
+            # Mostramos el nombre junto con su cargo para evitar confusiones. 
+            # Ej: "Harold Sánchez (Admin)" o "Luis Grau (Docente)"
+            diccionario_docentes = {f"{d.get('nombre', 'Sin nombre')} ({str(d.get('rol', '')).capitalize()})": d["id"] for d in res_perfiles.data}
+            
             nombres_docentes = list(diccionario_docentes.keys())
+            nombres_docentes.sort() # Ordenar alfabéticamente para que sea fácil buscarlos
         else:
             diccionario_docentes = {}
-            nombres_docentes = ["No hay docentes registrados"]
+            nombres_docentes = ["No hay empleados registrados"]
+            
     except Exception as e:
-        st.error(f"Error al cargar docentes: {e}")
+        st.error(f"Error al cargar empleados: {e}")
         diccionario_docentes = {}
         nombres_docentes = []
-
     # Opciones extraídas de la tabla de convenciones del colegio
     opciones_novedad = [
         "H: Hospitalizada", 

@@ -1,167 +1,159 @@
 import streamlit as st
-import os
-import smtplib
-from io import BytesIO
-from email.mime.text import MIMEText
 import pandas as pd
-from dotenv import load_dotenv
+from datetime import date
 from supabase import create_client
 
-# 1. Seguridad
+# ==========================================
+# 1. SEGURIDAD: VERIFICAR QUE SEA ADMINISTRATIVO
+# ==========================================
 if "logueado" not in st.session_state or not st.session_state.logueado:
-    st.warning("Debes iniciar sesión para ver esta página.")
+    st.error("⚠️ Debes iniciar sesión primero.")
     st.stop()
+
 if st.session_state.usuario_rol != "Administrativo":
-    st.error("Acceso denegado. Esta vista es exclusiva para el área administrativa.")
+    st.error("⛔ Acceso denegado. Esta página es solo para personal Administrativo.")
     st.stop()
 
-# 2. Conexión Robusta
-load_dotenv()
-try:
-    supabase_url = st.secrets["SUPABASE_URL"]
-    supabase_key = st.secrets["SUPABASE_KEY"]
-    email_user = st.secrets["EMAIL_USER"]
-    email_password = st.secrets["EMAIL_PASSWORD"]
-except Exception:
-    supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_KEY")
-    email_user = os.getenv("EMAIL_USER")
-    email_password = os.getenv("EMAIL_PASSWORD")
+# ==========================================
+# 2. CONEXIÓN A SUPABASE
+# ==========================================
+@st.cache_resource
+def init_connection():
+    # Usa st.secrets porque la app ya está en Streamlit Cloud
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
 
-if not supabase_url or not supabase_key:
-    st.error("🚨 Error crítico: No se encontraron las credenciales de Supabase.")
-    st.stop()
+supabase = init_connection()
 
-supabase = create_client(supabase_url, supabase_key)
-BUCKET_EVIDENCIAS = "evidencias"
+st.title("⚙️ Panel Administrativo HRMS")
 
-# 3. Funciones
-def enviar_correo(destinatario, estado, observaciones=""):
-    if not destinatario or not email_user or not email_password:
-        return
-    asunto = f"DocenteGO - Solicitud {estado}"
-    cuerpo = f"Hola,\n\nTu solicitud ha sido {estado}.\n\nObservaciones: {observaciones if observaciones else 'Sin observaciones.'}\n\nDocenteGO"
-    mensaje = MIMEText(cuerpo, "plain", "utf-8")
-    mensaje["Subject"] = asunto
-    mensaje["From"] = email_user
-    mensaje["To"] = destinatario
+# Crear dos pestañas principales
+tab_permisos, tab_novedades = st.tabs(["📋 Solicitudes de Permisos", "⚠️ Novedades de Nómina"])
+
+# ==========================================
+# PESTAÑA 1: GESTIÓN DE PERMISOS
+# ==========================================
+with tab_permisos:
+    st.subheader("Permisos Pendientes de Aprobación")
+    
     try:
-        with smtplib.SMTP("smtp.gmail.com", 587) as servidor:
-            servidor.starttls()
-            servidor.login(email_user, email_password)
-            servidor.send_message(mensaje)
-    except Exception as e:
-        st.warning(f"Error al enviar correo: {e}")
-
-def obtener_url_evidencia(ruta):
-    if not ruta: return None
-    res = supabase.storage.from_(BUCKET_EVIDENCIAS).create_signed_url(ruta, 600)
-    if isinstance(res, dict): return res.get("signedURL") or res.get("signed_url")
-    return getattr(res, "signed_url", None)
-
-def crear_excel(solicitudes):
-    columnas = [
-        "id", "created_at", "nombre", "correo", "fecha", 
-        "hora_inicio", "hora_fin", "tipo_novedad", "motivo", 
-        "estado", "observaciones", "evidencia_url"
-    ]
-    df = pd.DataFrame(solicitudes)
-    for col in columnas:
-        if col not in df.columns: df[col] = ""
-    df = df[columnas].copy()
-    
-    if not df.empty:
-        df["estado"] = df["estado"].fillna("Pendiente").replace("", "Pendiente")
-        df["fecha"] = df["fecha"].astype(str)
-        base = df.copy()
-        base["es_aceptada"] = (base["estado"] == "Aceptada").astype(int)
-        base["es_rechazada"] = (base["estado"] == "Rechazada").astype(int)
+        # Traer solicitudes pendientes
+        res_solicitudes = supabase.table("solicitudes").select("*").eq("estado", "Pendiente").execute()
         
-        docentes = (
-            base.groupby(["nombre", "correo", "tipo_novedad"], dropna=False)
-            .agg(total_solicitudes=("id", "count"), aceptadas=("es_aceptada", "sum"))
-            .reset_index()
-        )
-    else:
-        docentes = pd.DataFrame(columns=["nombre", "correo", "tipo_novedad", "total_solicitudes", "aceptadas"])
+        if res_solicitudes.data:
+            for sol in res_solicitudes.data:
+                with st.expander(f"Solicitud de {sol['nombre']} - {sol['fecha']}"):
+                    st.write(f"**Motivo:** {sol['motivo']}")
+                    st.write(f"**Detalle:** {sol['detalle']}")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("✅ Aprobar", key=f"btn_aprobar_{sol['id']}", type="primary"):
+                            supabase.table("solicitudes").update({"estado": "Aprobado"}).eq("id", sol['id']).execute()
+                            st.success("Permiso Aprobado.")
+                            st.rerun()
+                    with col2:
+                        if st.button("❌ Rechazar", key=f"btn_rechazar_{sol['id']}"):
+                            supabase.table("solicitudes").update({"estado": "Rechazado"}).eq("id", sol['id']).execute()
+                            st.error("Permiso Rechazado.")
+                            st.rerun()
+        else:
+            st.info("No hay solicitudes de permisos pendientes en este momento.")
+            
+    except Exception as e:
+        st.error(f"Error al cargar solicitudes: {e}")
 
-    salida = BytesIO()
-    with pd.ExcelWriter(salida, engine="openpyxl") as writer:
-        df.to_excel(writer, sheet_name="Solicitudes", index=False)
-        docentes.to_excel(writer, sheet_name="Resumen_Nomina", index=False)
-    return salida.getvalue(), docentes
-
-# 4. Interfaz UI
-st.title("📋 Gestión de Solicitudes y Nómina")
-
-try:
-    res = supabase.table("solicitudes").select("*").order("id", desc=True).execute()
-    solicitudes = res.data or []
-
-    pendientes = [s for s in solicitudes if s.get("estado") in [None, "", "Pendiente"]]
+# ==========================================
+# PESTAÑA 2: REGISTRO DE NOVEDADES DE NÓMINA
+# ==========================================
+with tab_novedades:
+    st.subheader("Registro Manual de Novedades")
+    st.markdown("Ingresa ausencias, incapacidades y otras novedades que afectan la nómina.")
     
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Total Solicitudes", len(solicitudes))
-    m2.metric("Pendientes", len(pendientes))
-    m3.metric("Procesadas", len(solicitudes) - len(pendientes))
+    try:
+        # Traer solo los perfiles de Docentes
+        res_perfiles = supabase.table("perfiles").select("id, nombre").eq("rol", "docente").execute()
+        if res_perfiles.data:
+            diccionario_docentes = {d["nombre"]: d["id"] for d in res_perfiles.data}
+            nombres_docentes = list(diccionario_docentes.keys())
+        else:
+            diccionario_docentes = {}
+            nombres_docentes = ["No hay docentes registrados"]
+    except Exception as e:
+        st.error(f"Error al cargar docentes: {e}")
+        diccionario_docentes = {}
+        nombres_docentes = []
 
-    st.markdown("---")
-    st.subheader(f"📥 Solicitudes pendientes: {len(pendientes)}")
+    # Opciones extraídas de la tabla de convenciones del colegio
+    opciones_novedad = [
+        "H: Hospitalizada", 
+        "INC: Incapacidad", 
+        "P: Permiso Remunerado",
+        "PN: Permiso No remunerado", 
+        "R: Retiro", 
+        "AI: Ausencia Injustificada",
+        "NRH: No registra huella / firma", 
+        "O: Otros", 
+        "PH: Permiso por horas",
+        "V: Vacaciones", 
+        "IN: Ingreso", 
+        "LM: Lic. Maternidad"
+    ]
 
-    opciones = {f"#{s.get('id')} · {s.get('correo', '')} · {s.get('fecha', '')}": s for s in pendientes}
-
-    if opciones:
-        seleccion = st.selectbox("Selecciona una solicitud para gestionar", list(opciones.keys()))
-        solicitud = opciones[seleccion]
-        sol_id = solicitud.get("id")
-
-        with st.container(border=True):
+    with st.container(border=True):
+        with st.form("form_registro_novedad", clear_on_submit=True):
             col1, col2 = st.columns(2)
+            
             with col1:
-                st.write(f"**Usuario:** {solicitud.get('correo', '')}")
-                st.write(f"**Novedad:** {solicitud.get('tipo_novedad', 'No especificado')}")
-                st.write(f"**Fecha:** {solicitud.get('fecha', '')}")
-            with col2:
-                st.write(f"**Horario:** {solicitud.get('hora_inicio', '')} - {solicitud.get('hora_fin', '')}")
-                st.write(f"**Motivo:** {solicitud.get('motivo', '')}")
+                docente_seleccionado = st.selectbox("Seleccionar Empleado", options=nombres_docentes)
+                fecha_novedad = st.date_input("Fecha de la Novedad", value=date.today())
                 
-                ruta = solicitud.get("evidencia_url")
-                if ruta:
-                    url = obtener_url_evidencia(ruta)
-                    if url: st.link_button("📎 Ver evidencia", url)
-                else: st.caption("Sin evidencia.")
+            with col2:
+                tipo_novedad = st.selectbox("Código de Convención", options=opciones_novedad)
+                observacion = st.text_input("Observación / Detalle (Opcional)")
+                
+            st.markdown("<br>", unsafe_allow_html=True)
+            btn_guardar = st.form_submit_button("💾 Registrar Novedad en Base de Datos", type="primary", use_container_width=True)
+            
+            if btn_guardar:
+                if docente_seleccionado and diccionario_docentes:
+                    docente_id = diccionario_docentes[docente_seleccionado]
+                    try:
+                        # Insertar en la tabla de Supabase
+                        supabase.table("novedades_nomina").insert({
+                            "docente_id": docente_id,
+                            "fecha": str(fecha_novedad),
+                            "codigo_novedad": tipo_novedad,
+                            "observacion": observacion
+                        }).execute()
+                        st.success(f"Novedad '{tipo_novedad}' registrada exitosamente para {docente_seleccionado}.")
+                    except Exception as e:
+                        st.error(f"Error al guardar la novedad: {e}")
+                else:
+                    st.warning("Por favor seleccione un empleado válido.")
 
-            obs = st.text_area("Observaciones de coordinación")
-
-            cA, cR = st.columns(2)
-            if cA.button("✅ Aprobar Permiso", use_container_width=True, type="primary"):
-                supabase.table("solicitudes").update({"estado": "Aceptada", "observaciones": obs}).eq("id", sol_id).execute()
-                enviar_correo(solicitud.get("correo", ""), "aceptada", obs)
-                st.success("Aprobado.")
-                st.rerun()
-            if cR.button("❌ Rechazar Permiso", use_container_width=True):
-                supabase.table("solicitudes").update({"estado": "Rechazada", "observaciones": obs}).eq("id", sol_id).execute()
-                enviar_correo(solicitud.get("correo", ""), "rechazada", obs)
-                st.success("Rechazado.")
-                st.rerun()
-    else:
-        st.success("No hay solicitudes pendientes.")
-
-    st.markdown("---")
-    st.subheader("📚 Base de Datos y Exportación")
+    st.divider()
+    st.subheader("📊 Historial de Novedades")
     
-    excel_bytes, docentes_df = crear_excel(solicitudes)
-    
-    tab1, tab2 = st.tabs(["Historial Completo", "Resumen para Nómina"])
-    with tab1: st.dataframe(pd.DataFrame(solicitudes), hide_index=True)
-    with tab2: st.dataframe(docentes_df, hide_index=True)
-
-    st.download_button(
-        "⬇️ Descargar Reporte Excel",
-        data=excel_bytes,
-        file_name="reporte_go_hrms.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        type="primary"
-    )
-except Exception as e:
-    st.error(f"Error de base de datos: {e}")
+    try:
+        # Hacemos JOIN con perfiles para mostrar el nombre del docente
+        res_novedades = supabase.table("novedades_nomina").select("fecha, codigo_novedad, observacion, perfiles(nombre)").order("fecha", desc=True).limit(20).execute()
+        
+        if res_novedades.data:
+            datos_tabla = []
+            for nov in res_novedades.data:
+                nombre_docente = nov.get("perfiles", {}).get("nombre", "Desconocido") if nov.get("perfiles") else "Desconocido"
+                datos_tabla.append({
+                    "Fecha": nov.get("fecha"),
+                    "Empleado": nombre_docente,
+                    "Novedad": nov.get("codigo_novedad"),
+                    "Observación": nov.get("observacion")
+                })
+            
+            df_novedades = pd.DataFrame(datos_tabla)
+            st.dataframe(df_novedades, use_container_width=True, hide_index=True)
+        else:
+            st.info("No hay novedades registradas recientemente.")
+    except Exception as e:
+        st.error(f"No se pudo cargar el historial: {e}")

@@ -50,7 +50,7 @@ if "usuario_email" not in st.session_state:
 # PANTALLA DE LOGIN
 # =========================
 def mostrar_login():
-    st.markdown("<h1 style='text-align: center;'>🎓 GO HRMS</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>🎓 DOCENTE GO </h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: gray;'>Sistema de Gestión Integral</p>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])

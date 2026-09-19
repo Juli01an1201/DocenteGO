@@ -43,9 +43,17 @@ with tab_permisos:
         
         if res_solicitudes.data:
             for sol in res_solicitudes.data:
-                with st.expander(f"Solicitud de {sol['nombre']} - {sol['fecha']}"):
-                    st.write(f"**Motivo:** {sol['motivo']}")
-                    st.write(f"**Detalle:** {sol['detalle']}")
+                # Usamos .get() para que no colapse si la columna tiene otro nombre
+                nombre = sol.get('nombre', 'Empleado')
+                fecha = sol.get('fecha', 'Fecha no especificada')
+                motivo = sol.get('motivo', 'Motivo no especificado')
+                
+                # Si en tu BD le pusiste "descripcion" en vez de "detalle", también lo intentará buscar
+                detalle = sol.get('detalle', sol.get('descripcion', sol.get('observacion', 'Sin detalle adicional')))
+                
+                with st.expander(f"Solicitud de {nombre} - {fecha}"):
+                    st.write(f"**Motivo:** {motivo}")
+                    st.write(f"**Detalle:** {detalle}")
                     
                     col1, col2 = st.columns(2)
                     with col1:

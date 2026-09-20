@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 from supabase import create_client
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # ==========================================
 # 1. SEGURIDAD: VERIFICAR QUE SEA ADMINISTRATIVO
@@ -19,12 +22,50 @@ if st.session_state.usuario_rol != "Administrativo":
 # ==========================================
 @st.cache_resource
 def init_connection():
-    # Usa st.secrets porque la app ya está en Streamlit Cloud
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     return create_client(url, key)
 
 supabase = init_connection()
+
+# ==========================================
+# 3. FUNCIÓN DE CORREOS (LISTA PARA FUTURO)
+# ==========================================
+def enviar_notificacion(correo_destino, nombre_docente, estado, fecha, motivo):
+    try:
+        # Usa .get() para que no falle la app si aún no pones estos datos en st.secrets
+        remitente = st.secrets.get("EMAIL_USUARIO", "")
+        password = st.secrets.get("EMAIL_CLAVE", "")
+        
+        if not remitente or not password:
+            print("Aviso: Credenciales de correo no configuradas.")
+            return
+
+        msg = MIMEMultipart()
+        msg['From'] = remitente
+        msg['To'] = correo_destino
+        msg['Subject'] = f"Actualización de Solicitud de Permiso: {estado}"
+        
+        color_estado = "green" if estado == "Aprobada" else "red"
+        cuerpo = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; color: #333;">
+                <h2 style="color: #004b87;">Go HRMS - Notificación de Permiso</h2>
+                <p>Hola <strong>{nombre_docente}</strong>,</p>
+                <p>Te informamos que tu solicitud de permiso por motivo de <em>{motivo}</em> para la fecha <strong>{fecha}</strong> ha sido <strong style="color: {color_estado};">{estado.upper()}</strong>.</p>
+                <br>
+                <p>Atentamente,<br><strong>Administración - Gimnasio Bilingüe Altamar</strong></p>
+            </body>
+        </html>
+        """
+        msg.attach(MIMEText(cuerpo, 'html'))
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as servidor:
+            servidor.login(remitente, password)
+            servidor.send_message(msg)
+            
+    except Exception as e:
+        print(f"Error al enviar correo: {e}")
 
 st.title("⚙️ Panel Administrativo HRMS")
 
@@ -38,18 +79,16 @@ with tab_permisos:
     st.subheader("Permisos Pendientes de Aprobación")
     
     try:
-        # Traer solicitudes pendientes
         res_solicitudes = supabase.table("solicitudes").select("*").eq("estado", "Pendiente").execute()
         
         if res_solicitudes.data:
             for sol in res_solicitudes.data:
-                # Usamos .get() para que no colapse si la columna tiene otro nombre
+                # Lectura segura de las columnas
                 nombre = sol.get('nombre', 'Empleado')
                 fecha = sol.get('fecha', 'Fecha no especificada')
                 motivo = sol.get('motivo', 'Motivo no especificado')
-                
-                # Si en tu BD le pusiste "descripcion" en vez de "detalle", también lo intentará buscar
                 detalle = sol.get('detalle', sol.get('descripcion', sol.get('observacion', 'Sin detalle adicional')))
+                correo_docente = sol.get('correo', None)
                 
                 with st.expander(f"Solicitud de {nombre} - {fecha}"):
                     st.write(f"**Motivo:** {motivo}")
@@ -59,11 +98,22 @@ with tab_permisos:
                     with col1:
                         if st.button("✅ Aprobar", key=f"btn_aprobar_{sol['id']}", type="primary"):
                             supabase.table("solicitudes").update({"estado": "Aprobado"}).eq("id", sol['id']).execute()
+                            
+                            # CUANDO TENGAS EL CORREO: Quita el '#' de estas dos líneas
+                            # if correo_docente:
+                            #     enviar_notificacion(correo_docente, nombre, "Aprobada", fecha, motivo)
+                                
                             st.success("Permiso Aprobado.")
                             st.rerun()
+                            
                     with col2:
                         if st.button("❌ Rechazar", key=f"btn_rechazar_{sol['id']}"):
                             supabase.table("solicitudes").update({"estado": "Rechazado"}).eq("id", sol['id']).execute()
+                            
+                            # CUANDO TENGAS EL CORREO: Quita el '#' de estas dos líneas
+                            # if correo_docente:
+                            #     enviar_notificacion(correo_docente, nombre, "Rechazada", fecha, motivo)
+                                
                             st.error("Permiso Rechazado.")
                             st.rerun()
         else:
@@ -80,25 +130,20 @@ with tab_novedades:
     st.markdown("Ingresa ausencias, incapacidades y otras novedades que afectan la nómina.")
     
     try:
-        # Traer TODOS los perfiles (Docentes y Administrativos, porque todos tienen nómina)
+        # Traer todos los empleados sin filtrar por rol específico
         res_perfiles = supabase.table("perfiles").select("id, nombre, rol").execute()
-        
         if res_perfiles.data:
-            # Mostramos el nombre junto con su cargo para evitar confusiones. 
-            # Ej: "Harold Sánchez (Admin)" o "Luis Grau (Docente)"
             diccionario_docentes = {f"{d.get('nombre', 'Sin nombre')} ({str(d.get('rol', '')).capitalize()})": d["id"] for d in res_perfiles.data}
-            
             nombres_docentes = list(diccionario_docentes.keys())
-            nombres_docentes.sort() # Ordenar alfabéticamente para que sea fácil buscarlos
+            nombres_docentes.sort()
         else:
             diccionario_docentes = {}
             nombres_docentes = ["No hay empleados registrados"]
-            
     except Exception as e:
         st.error(f"Error al cargar empleados: {e}")
         diccionario_docentes = {}
         nombres_docentes = []
-    # Opciones extraídas de la tabla de convenciones del colegio
+
     opciones_novedad = [
         "H: Hospitalizada", 
         "INC: Incapacidad", 
@@ -133,7 +178,6 @@ with tab_novedades:
                 if docente_seleccionado and diccionario_docentes:
                     docente_id = diccionario_docentes[docente_seleccionado]
                     try:
-                        # Insertar en la tabla de Supabase
                         supabase.table("novedades_nomina").insert({
                             "docente_id": docente_id,
                             "fecha": str(fecha_novedad),
@@ -150,16 +194,16 @@ with tab_novedades:
     st.subheader("📊 Historial de Novedades")
     
     try:
-        # Hacemos JOIN con perfiles para mostrar el nombre del docente
+        # Join con perfiles para mostrar el nombre del empleado
         res_novedades = supabase.table("novedades_nomina").select("fecha, codigo_novedad, observacion, perfiles(nombre)").order("fecha", desc=True).limit(20).execute()
         
         if res_novedades.data:
             datos_tabla = []
             for nov in res_novedades.data:
-                nombre_docente = nov.get("perfiles", {}).get("nombre", "Desconocido") if nov.get("perfiles") else "Desconocido"
+                nombre_empleado = nov.get("perfiles", {}).get("nombre", "Desconocido") if nov.get("perfiles") else "Desconocido"
                 datos_tabla.append({
                     "Fecha": nov.get("fecha"),
-                    "Empleado": nombre_docente,
+                    "Empleado": nombre_empleado,
                     "Novedad": nov.get("codigo_novedad"),
                     "Observación": nov.get("observacion")
                 })

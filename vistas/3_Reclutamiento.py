@@ -24,10 +24,10 @@ def init_connection():
 
 supabase = init_connection()
 
-st.title("🤝 Reclutamiento y Selección")
+st.title(" Reclutamiento y Selección")
 
 # Crear dos pestañas principales
-tab_vacantes, tab_candidatos = st.tabs(["📢 Gestión de Vacantes", "📄 Candidatos Postulados"])
+tab_vacantes, tab_candidatos = st.tabs([" Gestión de Vacantes", " Candidatos Postulados"])
 
 # ==========================================
 # PESTAÑA 1: GESTIÓN DE VACANTES
@@ -47,7 +47,7 @@ with tab_vacantes:
                 descripcion = st.text_area("Descripción y Requisitos del perfil", height=110)
                 
             st.markdown("<br>", unsafe_allow_html=True)
-            btn_crear_vacante = st.form_submit_button("📢 Publicar Vacante", type="primary", use_container_width=True)
+            btn_crear_vacante = st.form_submit_button(" Publicar Vacante", type="primary", use_container_width=True)
             
             if btn_crear_vacante:
                 if titulo_vacante and descripcion:
@@ -67,7 +67,7 @@ with tab_vacantes:
                     st.warning("Por favor completa el título y la descripción.")
 
     st.divider()
-    st.subheader("📋 Vacantes Actuales")
+    st.subheader(" Vacantes Actuales")
     
     try:
         # Traer todas las vacantes ordenadas por las más recientes
@@ -163,7 +163,7 @@ with tab_candidatos:
                         key=f"estado_{id_post}"
                     )
                     
-                    if st.button("💾 Guardar Cambio de Estado", key=f"btn_estado_{id_post}", type="primary"):
+                    if st.button(" Guardar Cambio de Estado", key=f"btn_estado_{id_post}", type="primary"):
                         supabase.table("postulaciones").update({"estado_proceso": nuevo_estado}).eq("id", id_post).execute()
                         st.success("Estado del candidato actualizado.")
                         st.rerun()

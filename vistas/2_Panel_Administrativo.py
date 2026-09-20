@@ -67,10 +67,10 @@ def enviar_notificacion(correo_destino, nombre_docente, estado, fecha, motivo):
     except Exception as e:
         print(f"Error al enviar correo: {e}")
 
-st.title("⚙️ Panel Administrativo HRMS")
+st.title(" Panel Administrativo HRMS")
 
 # Crear dos pestañas principales
-tab_permisos, tab_novedades = st.tabs(["📋 Solicitudes de Permisos", "⚠️ Novedades de Nómina"])
+tab_permisos, tab_novedades = st.tabs([" Solicitudes de Permisos", " Novedades de Nómina"])
 
 # ==========================================
 # PESTAÑA 1: GESTIÓN DE PERMISOS
@@ -172,7 +172,7 @@ with tab_novedades:
                 observacion = st.text_input("Observación / Detalle (Opcional)")
                 
             st.markdown("<br>", unsafe_allow_html=True)
-            btn_guardar = st.form_submit_button("💾 Registrar Novedad en Base de Datos", type="primary", use_container_width=True)
+            btn_guardar = st.form_submit_button("Registrar Novedad en Base de Datos", type="primary", use_container_width=True)
             
             if btn_guardar:
                 if docente_seleccionado and diccionario_docentes:
@@ -191,7 +191,7 @@ with tab_novedades:
                     st.warning("Por favor seleccione un empleado válido.")
 
     st.divider()
-    st.subheader("📊 Historial de Novedades")
+    st.subheader("Historial de Novedades")
     
     try:
         # Join con perfiles para mostrar el nombre del empleado

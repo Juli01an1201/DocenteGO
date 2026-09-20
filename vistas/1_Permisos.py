@@ -50,10 +50,10 @@ def subir_evidencia(archivo):
     return ruta
 
 # 3. Interfaz de Usuario
-st.title("✈️ Nueva solicitud de permiso")
+st.title("Nueva solicitud de permiso")
 st.write(f"Solicitando a nombre de: **{st.session_state.usuario_email}**")
 
-st.markdown('<div class="section-title">📅 Detalles del permiso</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">Detalles del permiso</div>', unsafe_allow_html=True)
 
 fecha = st.date_input("Fecha de la ausencia")
 
@@ -77,7 +77,7 @@ tipo_novedad = st.selectbox(
 motivo = st.text_area("Descripción detallada del motivo")
 evidencia = st.file_uploader("Subir evidencia (PDF, JPG, PNG)", type=["pdf", "png", "jpg", "jpeg"])
 
-if st.button("✈️ Enviar solicitud", type="primary", use_container_width=True):
+if st.button("Enviar solicitud", type="primary", use_container_width=True):
     if not motivo:
         st.warning("⚠️ Debes escribir un motivo.")
     else:

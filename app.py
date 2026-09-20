@@ -123,7 +123,8 @@ else:
         ]
     elif st.session_state.usuario_rol == "Administrativo":
         paginas = [
-            st.Page("vistas/2_Panel_Administrativo.py", title="Gestión de Permisos", icon="📋"),
+            st.Page("vistas/2_Panel_Administrativo.py", title="RRHH y Nómina", icon="📋"),
+            st.Page("vistas/3_Reclutamiento.py", title="Reclutamiento", icon="🤝"),
         ]
 
     # Ejecutar la navegación

@@ -143,7 +143,7 @@ with tab_candidatos:
                 id_post = post.get("id")
                 estado_actual = post.get("estado_proceso", "Recibida")
                 
-                with st.expander(f"👤 {nombre} ➡️ Aplicó a: {cargo} ({estado_actual})"):
+                with st.expander(f"{nombre} Aplicó a: {cargo} ({estado_actual})"):
                     st.write(f"**Correo:** {post.get('correo_candidato', 'N/A')}")
                     st.write(f"**Teléfono:** {post.get('telefono', 'N/A')}")
                     

@@ -106,7 +106,7 @@ if not st.session_state.logueado:
 else:
     # Botón global en la barra lateral
     with st.sidebar:
-        st.markdown(f"👤 **{st.session_state.usuario_email}**")
+        st.markdown(f"**{st.session_state.usuario_email}**")
         st.caption(f"Rol: {st.session_state.usuario_rol}")
         if st.button("Cerrar Sesión", use_container_width=True):
             st.session_state.logueado = False
@@ -119,12 +119,12 @@ else:
     paginas = []
     if st.session_state.usuario_rol == "Docente":
         paginas = [
-            st.Page("vistas/1_Permisos.py", title="Mis Permisos", icon="✈️"),
+            st.Page("vistas/1_Permisos.py", title="Mis Permisos"),
         ]
     elif st.session_state.usuario_rol == "Administrativo":
         paginas = [
-            st.Page("vistas/2_Panel_Administrativo.py", title="RRHH y Nómina", icon="📋"),
-            st.Page("vistas/3_Reclutamiento.py", title="Reclutamiento", icon="🤝"),
+            st.Page("vistas/2_Panel_Administrativo.py", title="RRHH y Nómina"),
+            st.Page("vistas/3_Reclutamiento.py", title="Reclutamiento"),
         ]
 
     # Ejecutar la navegación

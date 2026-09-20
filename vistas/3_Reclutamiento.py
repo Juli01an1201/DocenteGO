@@ -133,7 +133,7 @@ with tab_candidatos:
             df_candidatos = pd.DataFrame(datos_candidatos)
             st.dataframe(df_candidatos, use_container_width=True, hide_index=True)
             
-            st.markdown("### 🔍 Detalle y Gestión del Embudo")
+            st.markdown("###  Detalle y Gestión del Embudo")
             
             # Tarjetas individuales para gestionar a cada candidato
             for post in res_postulaciones.data:
